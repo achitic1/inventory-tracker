@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Box, Stack, Typography, Button, Modal, TextField } from '@mui/material'
+import { Grid, Card, CardContent, CardActions, Box, Stack, Typography, Button, Modal, TextField } from '@mui/material'
 import { firestore } from '@/firebase'
 import {
   collection,
@@ -33,6 +33,8 @@ export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Function to update the inventory, needs to be asynchronous otherwise the site will be frozen while it fetches
   const updateInventory = async () => {
@@ -46,31 +48,41 @@ export default function Home() {
     setInventory(inventoryList);
   }
 
-  const addItem = async(item) => {
+  const addItem = async(item, amount = 1) => {
     const docRef = doc(collection(firestore, "inventory"), item);
     const docSnap = await getDoc(docRef);
 
     if(docSnap.exists()) {
       const {quantity} = docSnap.data();
-      await setDoc(docRef, { quantity: quantity + 1 });
+      await setDoc(docRef, { quantity: quantity + amount });
     } else {
-      await setDoc(docRef, {quantity: 1});
+      await setDoc(docRef, {quantity: amount});
     }
     await updateInventory();
   }
 
-  const removeItem = async(item) => {
+  const removeItem = async(item, amount = 1) => {
     const docRef = doc(collection(firestore, "inventory"), item);
     const docSnap = await getDoc(docRef);
 
     if(docSnap.exists()) {
       const { quantity } = docSnap.data();
-      if (quantity === 1) {
+      if (quantity - amount < 1) {
         await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, {quantity: quantity - 1});
+        await setDoc(docRef, {quantity: quantity - amount});
       }
     }
+    await updateInventory();
+  }
+
+  const searchInventory = () => {
+    const filteredItems = inventory.filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setInventory(filteredItems);
+    setSearchTerm('');
+    setSearchOpen(false);
   }
 
   // This function updates whenever something in the dependency array changes, the dependency array is the second argument (the empty array passed)
@@ -110,10 +122,17 @@ export default function Home() {
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
             />
+            <TextField
+              id="outlined-basic"
+              type="number"
+              label="Amount"
+              variant="outlined"
+              fullWidth
+            />
             <Button
               variant="outlined"
               onClick={() => {
-                addItem(itemName)
+                addItem(itemName, )
                 setItemName('')
                 handleClose()
               }}
@@ -123,8 +142,43 @@ export default function Home() {
           </Stack>
         </Box>
       </Modal>
+      {/* Search Item Modal */}
+      <Modal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        aria-labelledby="search-modal-title"
+        aria-describedby="search-modal-description"
+      >
+        <Box sx={style}>
+          <Typography id="search-modal-title" variant="h6" component="h2">
+            Search Item
+          </Typography>
+          <Stack width="100%" direction={'row'} spacing={2}>
+            <TextField
+              id="search-outlined-basic"
+              label="Search"
+              variant="outlined"
+              fullWidth
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button
+              variant="outlined"
+              onClick={searchInventory}
+            >
+              Search
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
       <Button variant="contained" onClick={handleOpen}>
         Add New Item
+      </Button>
+      <Button variant="contained" onClick={() => setSearchOpen(true)}>
+        Search Item
+      </Button>
+      <Button variant="contained" onClick= { () => updateInventory()}>
+        Reset
       </Button>
       <Box border={'1px solid #333'}>
         <Box
@@ -139,30 +193,26 @@ export default function Home() {
             Inventory Items
           </Typography>
         </Box>
-        <Stack width="800px" height="300px" spacing={2} overflow={'auto'}>
-          {inventory.map(({name, quantity}) => (
-            <Box
-              key={name}
-              width="100%"
-              minHeight="150px"
-              display={'flex'}
-              justifyContent={'space-between'}
-              alignItems={'center'}
-              bgcolor={'#f0f0f0'}
-              paddingX={5}
-            >
-              <Typography variant={'h3'} color={'#333'} textAlign={'center'}>
-                {name.charAt(0).toUpperCase() + name.slice(1)}
-              </Typography>
-              <Typography variant={'h3'} color={'#333'} textAlign={'center'}>
-                Quantity: {quantity}
-              </Typography>
-              <Button variant="contained" onClick={() => removeItem(name)}>
-                Remove
-              </Button>
-            </Box>
+        <Grid container spacing={3}>
+          {inventory.map(({ name, quantity }) => (
+            <Grid item xs={12} sm={6} md={4} key={name}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h5">{name}</Typography>
+                  <Typography variant="body2">Quantity: {quantity}</Typography>
+                </CardContent>
+                <CardActions>
+                  <Button variant="contained" onClick={() => addItem(name)}>
+                    +
+                  </Button>
+                  <Button variant="contained" onClick={() => { removeItem(name)}}>
+                    -
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
           ))}
-        </Stack>
+        </Grid>
       </Box>
     </Box>
   ) 
