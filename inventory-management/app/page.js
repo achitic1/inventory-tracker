@@ -35,7 +35,7 @@ export default function Home() {
   const [itemName, setItemName] = useState('');
   const [itemAmount, setItemAmount] = useState(1);
 
-  // Use Refs to store references for each text field in the inventory grid
+  // Use refs to store references for each text field in the inventory list
   const amountRefs = useRef({});
 
   // Function to update the inventory, needs to be asynchronous otherwise the site will be frozen while it fetches
@@ -104,14 +104,16 @@ export default function Home() {
 
   const handleAddItem = (name) => {
     const amount = amountRefs.current[name]?.value || 1;
-    addItem(name, Number(amount));
-    amountRefs.current[name].value = ''; // Clear the input field after adding
+    if (amount > 0) {
+      addItem(name, Number(amount));
+    }
   };
 
   const handleRemoveItem = (name) => {
     const amount = amountRefs.current[name]?.value || 1;
-    removeItem(name, Number(amount));
-    amountRefs.current[name].value = ''; // Clear the input field after removing
+    if (amount > 0) {
+      removeItem(name, Number(amount));
+    }
   };
 
   return (
